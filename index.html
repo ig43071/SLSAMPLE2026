@@ -194,6 +194,9 @@ table.chk input[type=checkbox]{width:17px;height:17px;cursor:pointer;accent-colo
 .ownbar{background:var(--brand-lt);border:1px solid var(--brand-md);border-radius:8px;padding:12px 14px;margin-top:12px}
 .ownbar .oh{font-size:12.5px;font-weight:800;color:var(--brand-dk);margin-bottom:8px}
 .ownbar .oh span{font-weight:600;color:var(--ink-2)}
+.sentbox{background:var(--brand-lt);border:1px solid var(--brand-md);border-radius:8px;padding:16px 14px;text-align:center;margin-bottom:12px;font-size:13.5px;line-height:1.6}
+.sentbox .ic{font-size:30px;line-height:1;margin-bottom:8px}
+.sentbox p{margin:8px 0 0;color:var(--ink-2);font-size:12.5px}
 .conf{background:var(--bad-bg);color:var(--bad);border:1px solid #F0C4C4;border-radius:20px;
   padding:3px 10px;font-size:11.5px;font-weight:800;white-space:nowrap}
 @media print{ #wm{display:none!important} #gate{display:none!important} .toast{display:none!important} .mask{display:none!important} }
@@ -315,12 +318,50 @@ body.mode-a4 .labelgrid .label.warn{outline:0.9mm solid #000;outline-offset:-0.4
     <h1>인증샘플 이력관리 시스템</h1>
     <p class="gate-sub">SL 임직원 전용 시스템입니다. 사내 계정으로 로그인하세요.</p>
 
+    <!-- 이메일 링크 로그인 (기본) -->
+    <div id="gateLink" class="hide">
+      <label>회사 이메일</label>
+      <input id="lEmail" type="email" placeholder="hong@slworld.com" autocomplete="username">
+      <button class="btn p wide" onclick="sendLink()" id="lBtn">로그인 링크 받기</button>
+      <div class="gate-badge">🔒 <b>처음 한 번만</b> 메일 확인이 필요합니다. 이후에는 이 브라우저에서 <b>바로 입장</b>됩니다.</div>
+    </div>
+
+    <!-- 링크 발송 완료 -->
+    <div id="gateSent" class="hide">
+      <div class="sentbox">
+        <div class="ic">📬</div>
+        <b id="sentTo"></b> 으로 로그인 링크를 보냈습니다.
+        <p>회사 메일함을 열어 <b>[로그인]</b> 링크를 클릭하세요. 이 창은 닫으셔도 됩니다.</p>
+      </div>
+      <button class="btn wide" onclick="resetGate()">← 다른 이메일로</button>
+      <div class="gate-badge">메일이 안 보이면 <b>스팸함</b>을 확인하세요. 5분 내 도착하지 않으면 사내 메일 정책으로 차단된 것일 수 있습니다.</div>
+    </div>
+
+    <!-- 링크 확인 중 -->
+    <div id="gateBusy" class="hide">
+      <div class="sentbox"><div class="ic">⏳</div><b id="busyMsg">확인 중...</b></div>
+    </div>
+
+    <!-- 최초 1회 이름·소속 -->
+    <div id="gateWho" class="hide">
+      <div class="gate-badge" style="margin-bottom:10px">✅ <b id="whoMail"></b> 인증 완료</div>
+      <label>이름</label>
+      <input id="wName" placeholder="홍길동" autocomplete="name">
+      <label>소속</label>
+      <select id="wTeam">
+        <option>전장램프설계5팀</option><option>전장램프설계1팀</option><option>전장램프설계2팀</option>
+        <option>전장램프설계3팀</option><option>전장램프설계4팀</option><option>광성능평가팀</option>
+        <option>법규인증팀</option><option>시그널광학2팀</option><option>기획팀</option><option>기타</option>
+      </select>
+      <button class="btn p wide" onclick="finishWho()">시작하기</button>
+    </div>
+
     <div id="gateSSO" class="gate-sso hide">
       <button class="btn p wide" onclick="ssoLogin('microsoft')">Microsoft 365 계정으로 로그인</button>
       <button class="btn wide" onclick="ssoLogin('google')">Google 계정으로 로그인</button>
     </div>
 
-    <div id="gateDemo">
+    <div id="gateDemo" class="hide">
       <label>회사 이메일</label>
       <input id="gEmail" placeholder="hong@slworld.com" autocomplete="off">
       <label>이름</label>
@@ -332,7 +373,8 @@ body.mode-a4 .labelgrid .label.warn{outline:0.9mm solid #000;outline-offset:-0.4
         <option>법규인증팀</option><option>시그널광학2팀</option><option>기획팀</option><option>기타</option>
       </select>
       <button class="btn p wide" onclick="demoLogin()">로그인</button>
-      <div class="gate-badge">⚠ 컨셉 시연 모드 — 도메인만 확인하며 실제 인증은 하지 않습니다</div>
+      <div class="gate-badge" style="background:var(--bad-bg);color:var(--bad);border-color:#F0C4C4">
+        ⚠ <b>컨셉 시연 모드</b> — 도메인만 확인하며 <b>실제 인증은 하지 않습니다.</b> 실운영에서는 사용하지 마세요.</div>
     </div>
 
     <div class="gate-err" id="gateErr"></div>
@@ -399,6 +441,7 @@ body.mode-a4 .labelgrid .label.warn{outline:0.9mm solid #000;outline-offset:-0.4
     <div class="card-hd">
       <h2>📋 의뢰함</h2>
       <span class="sub" id="listSub"></span>
+      <span class="sub hide" id="scopeChip" style="display:inline-flex;align-items:center;gap:6px"></span>
       <div class="spacer"></div>
       <div class="btnrow no-print">
         <button class="btn p" onclick="newDoc()">+ 신규 의뢰</button>
@@ -797,16 +840,40 @@ body.mode-a4 .labelgrid .label.warn{outline:0.9mm solid #000;outline-offset:-0.4
           <tr><td>엑셀에서 한글이 깨진다</td><td>엑셀 → <b>데이터 → 텍스트/CSV 가져오기</b> → 원본 <b>UTF-8</b> 선택</td></tr>
         </tbody></table></div>
 
-      <h3>9. 데이터는 어디에 저장되나</h3>
+      <h3>9. 로그인은 어떻게 하나</h3>
+      <p>비밀번호가 없습니다. <b>회사 메일함을 열 수 있는 사람만</b> 들어오는 방식입니다.</p>
+      <ol>
+        <li>로그인 화면에 <b>회사 이메일</b>을 입력하고 <b>[로그인 링크 받기]</b></li>
+        <li>회사 메일함에 도착한 메일의 <b>로그인 링크를 클릭</b></li>
+        <li>처음 한 번만 <b>이름·소속</b>을 입력하면 끝 (다음부터는 자동)</li>
+      </ol>
+      <div class="note" style="background:var(--ok-bg);border-color:#BFE3CC;border-left-color:var(--ok)">
+        <b>메일 확인은 처음 한 번뿐입니다.</b>
+        <p style="margin:6px 0 0">한 번 인증하면 그 브라우저에 로그인 상태가 저장되어, 다음부터는 주소만 열면 <b>바로 들어옵니다</b>.
+        브라우저를 껐다 켜도, PC를 재부팅해도 유지됩니다.</p>
+        <p style="margin:6px 0 0">다시 메일 확인이 필요한 경우는 셋뿐입니다 —
+        <b>로그아웃했을 때 · 다른 PC나 다른 브라우저에서 열 때 · 브라우저 데이터를 지웠을 때.</b></p>
+      </div>
+      <div class="note"><b>왜 이렇게 하나</b> — 동료 이메일 주소는 비밀이 아니라서, 주소만 적게 하면 아무나 들어올 수 있습니다.
+      링크를 <b>그 메일함으로 보내면</b> 남의 주소를 적어봐야 링크가 그 사람에게 가버리므로 도용이 안 됩니다.</div>
+      <div class="note" style="background:var(--bad-bg);border-color:#F2C2C2;border-left-color:var(--bad)">
+        <b>메일이 안 오면</b> ① <b>스팸함</b> 확인 ② 5분 넘게 안 오면 사내 메일 정책으로 차단된 것입니다 — 관리자에게 알려주세요.
+      </div>
+
+      <h3>10. 데이터는 어디에 저장되나</h3>
       <p>우측 상단 표시가 <b>● 연결됨</b> 이면 클라우드에 저장되어 <b>세 팀이 같은 목록</b>을 봅니다.
       <b>● 로컬 모드</b> 또는 <b>● 연결 끊김</b> 이면 <b>내 브라우저에만</b> 저장되어 다른 사람에게 보이지 않습니다.</p>
+      <div class="note"><b>의뢰함에는 최근 200건만 올라옵니다.</b>
+      <p style="margin:6px 0 0">무료 사용량(하루 읽기 5만 회)을 아끼기 위한 설계입니다. 자료가 몇 년 쌓여도 사용량이 늘지 않습니다.</p>
+      <p style="margin:6px 0 0">지난 자료가 필요하면 의뢰함의 <b>[지난 자료 불러오기]</b> 를 누르세요.
+      <b>QR 조회</b>와 <b>백업</b>은 오래된 건이라도 자동으로 전체를 찾아오니 신경 쓰지 않으셔도 됩니다.</p></div>
       <div class="note"><b>월 1회는 [백업(JSON)]을 받아 공유 폴더에 두세요.</b>
       자동 백업이 없어서, 누가 실수로 지우면 되돌릴 방법이 이것뿐입니다.</div>
       <div class="danger-note"><b>보안</b> — 이 시스템에는 품번 · LOT · 관련 EO · 고객 차종 개발일정 · 리워크 이력이 담깁니다.
       화면 캡처본에는 접속 계정과 날짜가 옅게 찍혀 있어 유출 시 출처를 추적할 수 있습니다.
       사외 공유가 필요한 경우 반드시 상급자 승인을 받으십시오.</div>
 
-      <h3>10. SharePoint 목록으로 옮길 때</h3>
+      <h3>11. SharePoint 목록으로 옮길 때</h3>
       <p>사내 정책상 이 사이트를 쓸 수 없게 되면, 데이터는 Teams 채널의 SharePoint 목록으로 옮기고
       이 사이트는 <b>식별라벨 발행 전용</b>으로 쓰면 됩니다. 라벨 인쇄는 SharePoint로 대체가 어렵습니다.</p>
       <p>아래 버튼으로 받은 CSV의 <b>머리글 행</b>을
@@ -849,12 +916,30 @@ const ADMIN_PIN = "8763";   // 삭제 시 요구되는 관리자 PIN (배포 전
          'firebase' 실제 SSO 로그인. Firebase Authentication 사용
    ============================================================ */
 var AUTH = {
-  mode: 'demo',
+  /* 'emaillink' = 회사 메일로 로그인 링크 발송 (실운영 권장)
+     'demo'      = 도메인만 확인, 실제 인증 없음 (시연 전용)
+     'firebase'  = Microsoft 365 / Google SSO (Entra ID 앱 등록 필요) */
+  mode: 'emaillink',
   domains: ['slworld.com']            // 허용 사내 도메인 (여러 개 가능)
 };
 
 var ME = null;                         // {email,name,team}
 var SKEY = 'sl_cert_session_v1';
+var MKEY = 'sl_cert_pending_email';    // 링크 발송 시 저장해 두는 이메일
+var FBAPP=null, FBAUTH=null, AUmod=null;
+
+/* Firebase 앱·인증 모듈을 한 번만 로드해 공유 */
+async function fbAuth(){
+  if(FBAUTH) return FBAUTH;
+  var A  = await import('https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js');
+  AUmod  = await import('https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js');
+  FBAPP  = (A.getApps && A.getApps().length) ? A.getApps()[0] : A.initializeApp(FIREBASE_CONFIG);
+  FBAUTH = AUmod.getAuth(FBAPP);
+  // 브라우저를 껐다 켜도 로그인 유지 (한 번 인증하면 다음부터는 바로 입장)
+  try{ await AUmod.setPersistence(FBAUTH, AUmod.browserLocalPersistence); }catch(e){ console.warn(e); }
+  return FBAUTH;
+}
+function baseHref(){ return location.origin + location.pathname; }
 
 function domainOk(email){
   email = String(email||'').trim().toLowerCase();
@@ -874,14 +959,99 @@ function demoLogin(){
   grantAccess({email:email.toLowerCase(), name:name, team:team});
 }
 
+/* ===== 이메일 링크 로그인 ===== */
+function showGate(which){
+  ['gateLink','gateSent','gateBusy','gateWho','gateSSO','gateDemo'].forEach(function(id){
+    var el=document.getElementById(id); if(el) el.classList.toggle('hide', id!==which);
+  });
+}
+function resetGate(){ gateErr(''); showGate('gateLink'); var e=$('lEmail'); if(e){e.value='';e.focus();} }
+
+async function sendLink(){
+  gateErr('');
+  var email=(($('lEmail')||{}).value||'').trim().toLowerCase();
+  if(!email){ gateErr('회사 이메일을 입력하세요.'); return; }
+  if(!domainOk(email)){ gateErr('사내 계정(@'+AUTH.domains.join(', @')+')만 접속할 수 있습니다.'); return; }
+  if(!FIREBASE_CONFIG.projectId){ gateErr('Firebase 설정이 비어 있어 로그인 링크를 보낼 수 없습니다.'); return; }
+  var btn=$('lBtn'); if(btn){ btn.disabled=true; btn.textContent='보내는 중...'; }
+  try{
+    var auth=await fbAuth();
+    await AUmod.sendSignInLinkToEmail(auth, email, { url: baseHref(), handleCodeInApp: true });
+    try{ localStorage.setItem(MKEY, email); }catch(e){}
+    var st=$('sentTo'); if(st) st.textContent=email;
+    showGate('gateSent');
+  }catch(e){
+    console.error(e);
+    var c=e.code||'';
+    if(c.indexOf('unauthorized-continue-uri')>=0 || c.indexOf('invalid-continue-uri')>=0)
+      gateErr('이 주소가 Firebase에 등록되지 않았습니다. 콘솔 → Authentication → 설정 → 승인된 도메인에 '+location.hostname+' 을 추가하세요.');
+    else if(c.indexOf('operation-not-allowed')>=0)
+      gateErr('이메일 링크 로그인이 꺼져 있습니다. 콘솔 → Authentication → 로그인 방법 → 이메일/비밀번호 → 이메일 링크를 사용 설정하세요.');
+    else if(c.indexOf('invalid-email')>=0) gateErr('이메일 형식이 올바르지 않습니다.');
+    else gateErr('링크 발송에 실패했습니다: '+(c||e.message||''));
+  }finally{
+    if(btn){ btn.disabled=false; btn.textContent='로그인 링크 받기'; }
+  }
+}
+
+/* 메일의 링크를 눌러 돌아왔을 때 처리 */
+async function consumeLink(){
+  if(!FIREBASE_CONFIG.projectId) return false;
+  var auth;
+  try{ auth=await fbAuth(); }catch(e){ return false; }
+  if(!AUmod.isSignInWithEmailLink(auth, location.href)) return false;
+  showGate('gateBusy');
+  var email='';
+  try{ email=localStorage.getItem(MKEY)||''; }catch(e){}
+  if(!email) email=(prompt('확인을 위해 로그인 링크를 받은 이메일을 다시 입력하세요')||'').trim().toLowerCase();
+  if(!email){ gateErr('이메일 확인이 취소되었습니다.'); showGate('gateLink'); return true; }
+  try{
+    var res=await AUmod.signInWithEmailLink(auth, email, location.href);
+    try{ localStorage.removeItem(MKEY); }catch(e){}
+    var mail=(res.user.email||email).toLowerCase();
+    // 주소창에서 인증 파라미터 제거 (원래 해시는 보존)
+    var keep=(location.hash||'');
+    history.replaceState(null,'',location.pathname+keep);
+    if(!domainOk(mail)){
+      await AUmod.signOut(auth);
+      gateErr('사내 계정(@'+AUTH.domains.join(', @')+')만 접속할 수 있습니다. ('+mail+')');
+      showGate('gateLink'); return true;
+    }
+    afterVerified(mail);
+  }catch(e){
+    console.error(e);
+    var c=e.code||'';
+    if(c.indexOf('expired-action-code')>=0) gateErr('링크가 만료되었습니다. 다시 요청해 주세요.');
+    else if(c.indexOf('invalid-action-code')>=0) gateErr('이미 사용된 링크입니다. 다시 요청해 주세요.');
+    else gateErr('로그인에 실패했습니다: '+(c||e.message||''));
+    showGate('gateLink');
+  }
+  return true;
+}
+
+/* 인증된 이메일 확보 후 — 이름·소속이 없으면 1회 입력받음 */
+function afterVerified(mail){
+  try{ localStorage.setItem('sl_last_email', mail); }catch(e){}
+  var nm='', tm='';
+  try{ nm=localStorage.getItem('sl_user')||''; tm=localStorage.getItem('sl_team')||''; }catch(e){}
+  if(nm){ grantAccess({email:mail, name:nm, team:tm}); return; }
+  var wm=$('whoMail'); if(wm) wm.textContent=mail;
+  window.__verifiedMail=mail;
+  showGate('gateWho');
+  setTimeout(function(){ var el=$('wName'); if(el) el.focus(); },80);
+}
+function finishWho(){
+  var n=(($('wName')||{}).value||'').trim();
+  if(!n){ gateErr('이름을 입력하세요.'); return; }
+  grantAccess({email:window.__verifiedMail, name:n, team:(($('wTeam')||{}).value||'')});
+}
+
 async function ssoLogin(provider){
   gateErr('');
   if(!FIREBASE_CONFIG.projectId){ gateErr('Firebase 설정이 비어 있어 SSO를 사용할 수 없습니다.'); return; }
   try{
-    var A  = await import('https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js');
-    var AU = await import('https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js');
-    var app = (A.getApps && A.getApps().length) ? A.getApps()[0] : A.initializeApp(FIREBASE_CONFIG);
-    var auth = AU.getAuth(app);
+    var auth = await fbAuth();
+    var AU = AUmod;
     var p = provider==='microsoft' ? new AU.OAuthProvider('microsoft.com') : new AU.GoogleAuthProvider();
     if(provider==='microsoft') p.setCustomParameters({ tenant:'organizations' });
     var res = await AU.signInWithPopup(auth, p);
@@ -915,9 +1085,12 @@ function grantAccess(u){
   if(typeof initCloud==='function' && !window.__cloudInit){ window.__cloudInit=1; initCloud(); }
   if(typeof routeHash==='function') routeHash();
 }
-function logout(){
+async function logout(){
+  if(AUTH.mode==='emaillink' &&
+     !confirm('로그아웃하면 다음 접속 때 회사 메일로 로그인 링크를 다시 받아야 합니다.\n\n계속할까요?')) return;
   try{ sessionStorage.removeItem(SKEY); }catch(e){}
-  location.reload();
+  try{ if(FBAUTH && AUmod) await AUmod.signOut(FBAUTH); }catch(e){}
+  location.href = baseHref();
 }
 function paintWatermark(u){
   var wm=document.getElementById('wm'); if(!wm) return;
@@ -927,21 +1100,60 @@ function paintWatermark(u){
     h+='<i style="left:'+(c*28-6)+'%;top:'+(r*10)+'%">'+esc(txt)+'</i>';
   wm.innerHTML=h; wm.classList.add('on');
 }
-function bootGate(){
+async function bootGate(){
   var d=document.getElementById('gDom');
   if(d) d.textContent = AUTH.domains.map(function(x){return '@'+x}).join(' · ');
-  document.getElementById('gateSSO').classList.toggle('hide', AUTH.mode!=='firebase');
-  document.getElementById('gateDemo').classList.toggle('hide', AUTH.mode==='firebase');
+
   ['gEmail','gName'].forEach(function(id){
     var el=document.getElementById(id);
     if(el) el.addEventListener('keydown',function(ev){ if(ev.key==='Enter') demoLogin(); });
   });
+  var le=document.getElementById('lEmail');
+  if(le) le.addEventListener('keydown',function(ev){ if(ev.key==='Enter') sendLink(); });
+  var wn=document.getElementById('wName');
+  if(wn) wn.addEventListener('keydown',function(ev){ if(ev.key==='Enter') finishWho(); });
+
+  /* 1) 메일 링크로 돌아온 경우 최우선 처리 */
+  if(AUTH.mode==='emaillink' || AUTH.mode==='firebase'){
+    if(AUmodLinkInUrl()){
+      try{ if(await consumeLink()) return; }catch(e){ console.error(e); }
+    }
+  }
+
+  /* 2) 같은 탭 세션이 살아 있으면 즉시 통과 */
   try{
     var raw=sessionStorage.getItem(SKEY);
     if(raw){ var u=JSON.parse(raw); if(u && domainOk(u.email)){ grantAccess(u); return; } }
   }catch(e2){}
-  var e=document.getElementById('gEmail');
-  setTimeout(function(){ if(e) e.focus(); }, 100);
+
+  /* 3) 이전에 인증한 적이 있으면 링크 없이 바로 입장 */
+  if((AUTH.mode==='emaillink'||AUTH.mode==='firebase') && FIREBASE_CONFIG.projectId){
+    var bm=document.getElementById('busyMsg');
+    if(bm) bm.textContent='로그인 상태 확인 중...';
+    showGate('gateBusy');
+    try{
+      var auth=await fbAuth();
+      var cur=await new Promise(function(res){
+        var done=false;
+        var off=AUmod.onAuthStateChanged(auth,function(x){ if(done)return; done=true; off(); res(x); });
+        setTimeout(function(){ if(done)return; done=true; res(auth.currentUser||null); }, 8000);
+      });
+      if(cur && cur.email && domainOk(cur.email)){ afterVerified(cur.email.toLowerCase()); return; }
+    }catch(e3){ console.error(e3); }
+  }
+
+  /* 4) 로그인 화면 */
+  showGate(AUTH.mode==='emaillink' ? 'gateLink' : (AUTH.mode==='firebase' ? 'gateSSO' : 'gateDemo'));
+  if(AUTH.mode==='emaillink' && le && !le.value){
+    try{ le.value=localStorage.getItem('sl_last_email')||''; }catch(e){}
+  }
+  var f=document.getElementById(AUTH.mode==='emaillink' ? 'lEmail' : 'gEmail');
+  setTimeout(function(){ if(f) f.focus(); }, 100);
+}
+/* 주소에 로그인 링크 파라미터가 있는지 (모듈 로드 전 빠른 판별) */
+function AUmodLinkInUrl(){
+  var q=location.search||'', h=location.hash||'';
+  return /[?&]oobCode=/.test(q) || /[?&]mode=signIn/.test(q) || /oobCode=/.test(h);
 }
 
 const KEY='sl_cert_sample_v1';
@@ -1011,6 +1223,14 @@ function conn(state,text){
   const c=$('connChip'); if(!c)return;
   c.className='conn '+state; c.textContent='● '+text;
 }
+/* =============== 클라우드 =============== */
+/* 읽기 사용량 설계
+   - 의뢰: 최근 RECENT_N 건만 실시간 구독 → 누적 건수가 늘어도 읽기량이 늘지 않음
+   - 히스토리: 상시 구독하지 않고 [변경 히스토리] 탭을 열 때만 1회 조회
+   - 지난 자료가 필요하면 [지난 자료 불러오기]로 그때만 전체를 읽음            */
+var RECENT_N = 200;
+var FULL_LOADED = false;
+
 async function initCloud(){
   if(!FIREBASE_CONFIG.projectId){
     conn('local','로컬 모드');
@@ -1018,40 +1238,81 @@ async function initCloud(){
   }
   conn('wait','연결 중...');
   try{
-    const A=await import('https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js');
     const F=await import('https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js');
-    const app=A.initializeApp(FIREBASE_CONFIG);
-    FS=F; FDB=F.getFirestore(app);
-    try{
-      const AU=await import('https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js');
-      await AU.signInAnonymously(AU.getAuth(app));
-    }catch(e){ /* 익명 로그인 미사용 시 통과 */ }
+    await fbAuth();                       // 앱·인증 인스턴스 공유
+    FS=F; FDB=F.getFirestore(FBAPP);
+    if(AUTH.mode==='demo'){
+      // 시연 모드에서만 익명 로그인 사용 (콘솔에서 '익명'이 켜져 있어야 함)
+      try{ await AUmod.signInAnonymously(FBAUTH); }catch(e){ console.warn('익명 로그인 불가',e.code||e); }
+    }
 
-    // 의뢰 실시간 구독
-    F.onSnapshot(F.collection(FDB,'requests'), snap=>{
-      DB.docs = snap.docs.map(d=>d.data());
-      saveLocal();
-      if(!$('view-list').classList.contains('hide')) renderList();
-      if(cur && cur.docNo){
-        const remote=DB.docs.find(x=>x.id===cur.id);
-        if(remote && remote.updatedAt && cur.updatedAt && remote.updatedAt>cur.updatedAt){
-          toast('⚠ 다른 사용자가 이 문서를 수정했습니다 — 목록에서 다시 여세요');
+    // 의뢰 — 최근 건만 실시간 구독
+    F.onSnapshot(
+      F.query(F.collection(FDB,'requests'), F.orderBy('createdAt','desc'), F.limit(RECENT_N)),
+      snap=>{
+        const recent=snap.docs.map(d=>d.data());
+        if(FULL_LOADED){
+          // 전체를 불러온 상태면 최근분만 덮어쓰고 지난 자료는 유지
+          const ids=new Set(recent.map(x=>x.id));
+          DB.docs = recent.concat(DB.docs.filter(x=>!ids.has(x.id)));
+        } else {
+          DB.docs = recent;
         }
-      }
-      conn('ok','연결됨');
-    }, err=>{ conn('err','연결 끊김'); CLOUD=false; console.error(err); });
-
-    // 히스토리 실시간 구독
-    F.onSnapshot(F.query(F.collection(FDB,'logs'), F.orderBy('at','desc'), F.limit(200)), snap=>{
-      DB.log = snap.docs.map(d=>d.data());
-      if(!$('view-hist').classList.contains('hide')) renderAllHist();
-    }, ()=>{});
+        saveLocal();
+        if(!$('view-list').classList.contains('hide')) renderList();
+        if(cur && cur.docNo){
+          const remote=DB.docs.find(x=>x.id===cur.id);
+          if(remote && remote.updatedAt && cur.updatedAt && remote.updatedAt>cur.updatedAt){
+            toast('⚠ 다른 사용자가 이 문서를 수정했습니다 — 목록에서 다시 여세요');
+          }
+        }
+        conn('ok','연결됨');
+      },
+      err=>{ conn('err','연결 끊김'); CLOUD=false; console.error(err); }
+    );
 
     CLOUD=true;
   }catch(e){
     console.error(e);
     conn('err','연결 끊김');
   }
+}
+
+/* 지난 자료 전체 1회 로드 (필요할 때만) */
+async function loadAll(silent){
+  if(FULL_LOADED) return true;
+  if(!CLOUD || !FS || !FDB){ if(!silent) toast('클라우드에 연결되어 있지 않습니다'); return false; }
+  try{
+    if(!silent) toast('지난 자료를 불러오는 중...');
+    const snap=await FS.getDocs(FS.collection(FDB,'requests'));
+    const all=snap.docs.map(d=>d.data());
+    const ids=new Set(all.map(x=>x.id));
+    DB.docs = all.concat(DB.docs.filter(x=>!ids.has(x.id)));
+    DB.docs.sort((a,b)=>String(b.createdAt||'').localeCompare(String(a.createdAt||'')));
+    FULL_LOADED=true; saveLocal(); renderList(); paintScope();
+    if(!silent) toast('전체 '+all.length+'건을 불러왔습니다');
+    return true;
+  }catch(e){ console.error(e); if(!silent) toast('⚠ 불러오기에 실패했습니다'); return false; }
+}
+function paintScope(){
+  const el=$('scopeChip'); if(!el) return;
+  if(!CLOUD){ el.classList.add('hide'); return; }
+  el.classList.remove('hide');
+  el.innerHTML = FULL_LOADED
+    ? '<span class="muted">전체 자료 표시 중</span>'
+    : '최근 '+RECENT_N+'건만 표시 중 <button class="btn sm" onclick="loadAll()">지난 자료 불러오기</button>';
+}
+
+/* 변경 히스토리 — 탭을 열 때만 조회 */
+var LOG_LOADED=false;
+async function fetchLogs(force){
+  if(!CLOUD || !FS || !FDB) return;
+  if(LOG_LOADED && !force) return;
+  try{
+    const snap=await FS.getDocs(FS.query(FS.collection(FDB,'logs'), FS.orderBy('at','desc'), FS.limit(200)));
+    DB.log = snap.docs.map(d=>d.data());
+    LOG_LOADED=true; renderAllHist();
+  }catch(e){ console.error(e); }
 }
 async function pushDoc(d){
   if(!CLOUD)return;
@@ -1114,7 +1375,8 @@ function go(v){
   const nb=$('nav-'+v); if(nb) nb.classList.add('active');
   if(v==='list')renderList();
   if(v==='label')fillLabelSel();
-  if(v==='hist')renderAllHist();
+  if(v==='hist'){ renderAllHist(); fetchLogs(); }
+  if(v==='list') paintScope();
   if(v!=='lookup' && /^#s=/.test(location.hash||'')){ history.replaceState(null,'',location.pathname+location.search); }
   window.scrollTo(0,0);
 }
@@ -1144,7 +1406,12 @@ function renderList(){
   sel.innerHTML='<option value="">전체 차종</option>'+vs.map(v=>`<option${v===keep?' selected':''}>${esc(v)}</option>`).join('');
 
   const rows=filtered();
+  const q=($('fQ').value||'').trim();
   $('listSub').textContent=`총 ${rows.length}건`;
+  if(CLOUD && !FULL_LOADED && q && rows.length===0){
+    $('listSub').innerHTML=`총 0건 — <span class="muted">최근 ${RECENT_N}건에서 찾은 결과입니다.</span>
+      <button class="btn sm" onclick="loadAll()">지난 자료까지 검색</button>`;
+  }
   const pages=Math.max(1,Math.ceil(rows.length/PER)); if(page>pages)page=pages;
   const view=rows.slice((page-1)*PER,page*PER);
   const tb=$('listBody');
@@ -2064,10 +2331,15 @@ function lookPanel(icon,title,body){
   return '<div class="empty"><div class="big">'+icon+'</div><div style="font-size:16px;font-weight:800;color:var(--ink)">'+title+'</div>'+
     '<div style="margin-top:8px;font-size:13px">'+body+'</div></div>';
 }
-function showLookup(code){
+async function showLookup(code){
   go('lookup');
   var el=$('lookupBody'); if(!el) return;
   var hit=findByCode(code);
+  if(!hit && CLOUD && !FULL_LOADED){
+    el.innerHTML=lookPanel('⏳','지난 자료에서 찾는 중...','잠시만 기다려 주세요.');
+    await loadAll(true);
+    hit=findByCode(code);
+  }
   if(!hit){ el.innerHTML=lookPanel('❔','등록되지 않은 코드입니다','관리코드 <b>'+esc(code)+'</b> 에 해당하는 샘플이 없습니다.<br>라벨이 잘못되었거나 이미 삭제된 의뢰일 수 있습니다.'); return; }
   var d=hit.doc, s=hit.smp, st=qrState(d);
   if(!st.ok){
@@ -2154,9 +2426,15 @@ function exportHist(){
   DB.log.forEach(e=>out.push([e.doc,e.action,e.detail,e.by,fdt(e.at)].map(q).join(',')));
   dl('변경히스토리_'+today()+'.csv',out.join('\r\n')); toast('히스토리 저장 완료');
 }
-function backup(){
+async function backup(){
+  // 화면에는 최근 건만 올라와 있으므로, 백업 전에 지난 자료까지 확보
+  if(CLOUD && !FULL_LOADED){
+    if(confirm('지금 화면에는 최근 '+RECENT_N+'건만 올라와 있습니다.\n지난 자료까지 포함해 백업하려면 전체를 먼저 불러와야 합니다.\n\n전체를 불러올까요?')){
+      await loadAll(true);
+    }
+  }
   dl('인증샘플이력_백업_'+today()+'.json',JSON.stringify(DB,null,2),'application/json');
-  toast('백업 파일 저장 완료');
+  toast('백업 파일 저장 완료 ('+DB.docs.length+'건)');
 }
 function restore(inp){
   const f=inp.files[0]; if(!f)return; const r=new FileReader();
